@@ -1,23 +1,24 @@
+import os
 import uuid
-from datetime import datetime
-from typing import Any, Callable, Dict, List, Union
 from copy import deepcopy
+from datetime import datetime
 from functools import reduce
+from typing import Any, Callable, Dict, List, Union
 
 import numpy as np
 import parcels
 import xarray as xr
 from parcels.particle import JITParticle
-from ikamoana.utils import seapodymFieldConstructor
-from ikamoana.utils import convertToDataArray
+
 from ikamoana.ikafish import behaviours
-import os
+from ikamoana.utils import convertToDataArray, seapodymFieldConstructor
 
 # NOTE : Unity used here are seconds and meters.
 
-KernelType = Callable[[JITParticle,parcels.FieldSet,datetime], None]
+KernelType = Callable[[JITParticle, parcels.FieldSet, datetime], None]
 
-class IkaSimulation :
+
+class IkaSimulation:
     """
     Encapsulates the simulation methods of the Parcels library. Is used
     as a template by the IkaSeapodym class.
@@ -59,10 +60,12 @@ class IkaSimulation :
     ...     # Record day after day
     ...     output_delta_time=24*60*60)
     >>> my_sim.oceanToNetCDF(to_dataset=True)
+
     """
 
     def __init__(self, run_name: str = None, random_seed: float = None):
-        """Initialize an IkaSimulation object.
+        """
+        Initialize an IkaSimulation object.
 
         Parameters
         ----------
@@ -71,9 +74,9 @@ class IkaSimulation :
            generated if None.
         random_seed : float, optional
             Automatically generated if None.
-        """
 
-        if run_name is None :
+        """
+        if run_name is None:
             run_name = str(uuid.uuid4())[:8]
         if random_seed is None:
             np.random.RandomState()
@@ -83,24 +86,34 @@ class IkaSimulation :
         self.random_seed = random_seed
 
     def _addField(
-            self, field, dims={"time":"time","lat":"lat","lon":"lon"},
-            name=None, time_extra=True, interp_method='nearest'
-            ):
+        self,
+        field,
+        dims={"time": "time", "lat": "lat", "lon": "lon"},
+        name=None,
+        time_extra=True,
+        interp_method="nearest",
+    ):
         """Add a field to the self ocean attribut."""
-
-        self.ocean.add_field(parcels.Field.from_xarray(
-            field, name=field.name if name is None else name,
-            dimensions=dims, allow_time_extrapolation=time_extra,
-            interp_method=interp_method))
+        self.ocean.add_field(
+            parcels.Field.from_xarray(
+                field,
+                name=field.name if name is None else name,
+                dimensions=dims,
+                allow_time_extrapolation=time_extra,
+                interp_method=interp_method,
+            )
+        )
 
     def loadFields(
-            self, fields: Union[xr.Dataset, parcels.FieldSet,
-                                Dict[str,Union[str,parcels.Field,xr.DataArray]]],
-            inplace: bool = False, allow_time_extrapolation: bool = True,
-            landmask_interp_methode: str = 'nearest',
-            fields_interp_method: str = 'nearest',
-            ):
-        """Loads all the fields needed for the simulation into a
+        self,
+        fields: Union[xr.Dataset, parcels.FieldSet, Dict[str, Union[str, parcels.Field, xr.DataArray]]],
+        inplace: bool = False,
+        allow_time_extrapolation: bool = True,
+        landmask_interp_methode: str = "nearest",
+        fields_interp_method: str = "nearest",
+    ):
+        """
+        Loads all the fields needed for the simulation into a
         Parcels.FieldSet structure.
 
         Parameters
@@ -131,101 +144,107 @@ class IkaSimulation :
         KeyError
             `fields` (Dict[str,DataArray/Field]) argument must contains
             both U and V but U or V are missing.
-        """
 
+        """
         # NOTE : spatial_limits:Dict is not needed. We consider that
         # all fields are already at the right size.
 
         def loadFilepaths(fields):
-            """In the case where `fields` contains path to NetCDF/DYM
-            files, they are loaded before anything else."""
-            if isinstance(fields, dict) :
-                for k, v in fields.items() :
-                    if isinstance(v, str) :
+            """
+            In the case where `fields` contains path to NetCDF/DYM
+            files, they are loaded before anything else.
+            """
+            if isinstance(fields, dict):
+                for k, v in fields.items():
+                    if isinstance(v, str):
                         fields[k] = seapodymFieldConstructor(v, k)
 
         def checkUVFields(fields):
             """U and V fields must by passed to parcels.FieldSet generator."""
-            if isinstance(fields, parcels.FieldSet) :
-                if not hasattr(fields, "U") :
-                    raise AttributeError("fields argument must contains both U "
-                                         "and V but U is missing.")
-                if not hasattr(fields, "V") :
-                    raise AttributeError("fields argument must contains both U "
-                                         "and V but V is missing.")
-            else :
-                if 'U' not in fields :
-                    raise KeyError("fields argument must contains both U and V "
-                                   "but U is missing.")
-                if 'V' not in fields :
-                    raise KeyError("fields argument must contains both U and V "
-                                   "but V is missing.")
+            if isinstance(fields, parcels.FieldSet):
+                if not hasattr(fields, "U"):
+                    raise AttributeError("fields argument must contains both U and V but U is missing.")
+                if not hasattr(fields, "V"):
+                    raise AttributeError("fields argument must contains both U and V but V is missing.")
+            else:
+                if "U" not in fields:
+                    raise KeyError("fields argument must contains both U and V but U is missing.")
+                if "V" not in fields:
+                    raise KeyError("fields argument must contains both U and V but V is missing.")
 
         def checkLandmask(fields):
-            """If `fields` doesn't contain landmask, it is created using
-            U and V Nan values."""
-            if isinstance(fields, parcels.FieldSet) :
-                if not hasattr(fields, "landmask") :
+            """
+            If `fields` doesn't contain landmask, it is created using
+            U and V Nan values.
+            """
+            if isinstance(fields, parcels.FieldSet):
+                if not hasattr(fields, "landmask"):
                     landmask = np.full(shape=fields.U.data.shape, fill_value=True)
-                    for f in fields.get_fields() :
+                    for f in fields.get_fields():
                         landmask &= np.isfinite(f.data)
                     landmask = parcels.Field(
-                        name="landmask", data=landmask, grid=fields.U.grid,
-                        interp_method=landmask_interp_methode)
+                        name="landmask", data=landmask, grid=fields.U.grid, interp_method=landmask_interp_methode
+                    )
                     fields.add_field(landmask, name="landmask")
 
-            else :
-                if 'landmask' not in fields :
-                    landmask = np.full(shape=fields['U'].data.shape, fill_value=True)
-                    for key in fields :
-                        landmask &= np.isfinite(fields[key].data)
-                    fields['landmask'] = xr.DataArray(data=landmask,
-                                                      coords=fields['U'].coords)
+            elif "landmask" not in fields:
+                landmask = np.full(shape=fields["U"].data.shape, fill_value=True)
+                for key in fields:
+                    landmask &= np.isfinite(fields[key].data)
+                fields["landmask"] = xr.DataArray(data=landmask, coords=fields["U"].coords)
 
         def convertToFieldSet(fields):
             """Convert to Parcels.FieldSet."""
-            if isinstance(fields, parcels.FieldSet) :
+            if isinstance(fields, parcels.FieldSet):
                 return fields
 
-            if isinstance(fields, xr.Dataset) :
+            if isinstance(fields, xr.Dataset):
                 landmask = fields["landmask"]
                 landmask = parcels.Field.from_xarray(
-                    landmask, name="landmask",
-                    dimensions={k:k for k in landmask.coords.keys()},
-                    interp_method=landmask_interp_methode)
+                    landmask,
+                    name="landmask",
+                    dimensions={k: k for k in landmask.coords.keys()},
+                    interp_method=landmask_interp_methode,
+                )
                 fields = fields.drop_vars("landmask")
                 fields = parcels.FieldSet.from_xarray_dataset(
-                    ds=fields, variables={k:k for k in fields.keys()},
-                    dimensions={k:k for k in fields.coords.keys()},
+                    ds=fields,
+                    variables={k: k for k in fields.keys()},
+                    dimensions={k: k for k in fields.coords.keys()},
                     allow_time_extrapolation=allow_time_extrapolation,
-                    interp_method=fields_interp_method)
+                    interp_method=fields_interp_method,
+                )
 
-            else :
+            else:
                 landmask = fields.pop("landmask")
-                if not isinstance(landmask, parcels.Field) :
+                if not isinstance(landmask, parcels.Field):
                     landmask = parcels.Field.from_xarray(
-                        landmask, name="landmask",
-                        dimensions={k:k for k in landmask.coords.keys()},
-                        interp_method=landmask_interp_methode)
-                for k, v in fields.items() :
-                    if not isinstance(v, parcels.Field) :
+                        landmask,
+                        name="landmask",
+                        dimensions={k: k for k in landmask.coords.keys()},
+                        interp_method=landmask_interp_methode,
+                    )
+                for k, v in fields.items():
+                    if not isinstance(v, parcels.Field):
                         fields[k] = parcels.Field.from_xarray(
-                            v, name=k, dimensions={k:k for k in v.coords.keys()},
+                            v,
+                            name=k,
+                            dimensions={k: k for k in v.coords.keys()},
                             allow_time_extrapolation=allow_time_extrapolation,
-                            interp_method=fields_interp_method)
+                            interp_method=fields_interp_method,
+                        )
 
-                fields = parcels.FieldSet(
-                    U=fields.pop('U'), V=fields.pop('V'), fields=fields)
+                fields = parcels.FieldSet(U=fields.pop("U"), V=fields.pop("V"), fields=fields)
 
-            fields.add_field(landmask, name='landmask')
+            fields.add_field(landmask, name="landmask")
             return fields
 
-        if not inplace :
+        if not inplace:
             if not isinstance(fields, parcels.FieldSet):
                 copied_fields = fields.copy()
-            else :
+            else:
                 copied_fields = deepcopy(fields)
-        else :
+        else:
             copied_fields = fields
 
         loadFilepaths(copied_fields)
@@ -234,12 +253,15 @@ class IkaSimulation :
         self.ocean = convertToFieldSet(copied_fields)
 
     def initializeParticleSet(
-            self, particles_longitude:Union[list,np.ndarray],
-            particles_latitude:Union[list,np.ndarray],
-            particles_class: JITParticle = JITParticle,
-            particles_starting_time: Union[np.datetime64,List[np.datetime64]] = None,
-            particles_variables: Dict[str,List[Any]] = {}):
-        """Initialise the ParticleSet (`fish` attribut) from lists of
+        self,
+        particles_longitude: Union[list, np.ndarray],
+        particles_latitude: Union[list, np.ndarray],
+        particles_class: JITParticle = JITParticle,
+        particles_starting_time: Union[np.datetime64, List[np.datetime64]] = None,
+        particles_variables: Dict[str, List[Any]] = {},
+    ):
+        """
+        Initialise the ParticleSet (`fish` attribut) from lists of
         longitude and latitude.
 
         Parameters
@@ -262,32 +284,47 @@ class IkaSimulation :
         ValueError
             Each list in particles_variables must have a length equal to
             the number of particles.
-        """
 
+        """
         # NOTE : The verification of the sizes of particles_latitude and
         # particles_longitude is done later by parcels.ParticleSet.from_list.
 
         particles_number = len(particles_longitude)
-        if particles_variables != {} :
-            for k, v in particles_variables.items() :
-                if len(v) != particles_number :
-                    raise ValueError(("Each list in particles_variables must have "
-                                      "a length equal to the number of particles. "
-                                      "But {} length is equal to {}"
-                                      ).format(k, len(v)))
+        if particles_variables != {}:
+            for k, v in particles_variables.items():
+                if len(v) != particles_number:
+                    raise ValueError(
+
+                            "Each list in particles_variables must have "
+                            "a length equal to the number of particles. "
+                            f"But {k} length is equal to {len(v)}"
+
+                    )
 
         self.fish = parcels.ParticleSet.from_list(
-            fieldset=self.ocean, lon=particles_longitude, lat=particles_latitude,
-            pclass=particles_class, time=particles_starting_time, **particles_variables)
+            fieldset=self.ocean,
+            lon=particles_longitude,
+            lat=particles_latitude,
+            pclass=particles_class,
+            time=particles_starting_time,
+            **particles_variables,
+        )
 
     def runKernels(
-            self, kernels: Union[KernelType, Dict[str, KernelType]],
-            recovery: Dict[int, KernelType] = None,
-            sample_kernels: list = [],
-            delta_time: int = 1, duration_time: int = None, end_time: np.datetime64 = None,
-            save: bool = False, output_name: str = None, output_delta_time: int = 1,
-            verbose: bool = False):
-        """Execute a given kernel (or a list of kernels) function(s)
+        self,
+        kernels: Union[KernelType, Dict[str, KernelType]],
+        recovery: Dict[int, KernelType] = None,
+        sample_kernels: list = [],
+        delta_time: int = 1,
+        duration_time: int = None,
+        end_time: np.datetime64 = None,
+        save: bool = False,
+        output_name: str = None,
+        output_delta_time: int = 1,
+        verbose: bool = False,
+    ):
+        """
+        Execute a given kernel (or a list of kernels) function(s)
         over the particle set for multiple timesteps. Optionally also
         provide sub-timestepping for particle output.
 
@@ -323,44 +360,47 @@ class IkaSimulation :
         verbose : bool, optional
             Boolean for providing a progress bar for the kernel
             execution loop.
-        """
 
+        """
         # NOTE : The verification of the duration_time and end_time
         # (only one can be chosen) is done later by parcels.ParticleSet.execute.
 
-        if save :
-            if output_name is None :
-                output_name = "{}_particleFile".format(self.run_name)
-            else :
+        if save:
+            if output_name is None:
+                output_name = f"{self.run_name}_particleFile"
+            else:
                 output_name, _ = os.path.splitext(output_name)
-            particles_file = self.fish.ParticleFile(
-                name=("{}.nc").format(output_name), outputdt=output_delta_time)
-        else :
+            particles_file = self.fish.ParticleFile(name=(f"{output_name}.nc"), outputdt=output_delta_time)
+        else:
             particles_file = None
 
         for sk in sample_kernels:
-            if sk in behaviours.AllKernels :
+            if sk in behaviours.AllKernels:
                 sampler = behaviours.AllKernels[sk]
-                self.fish.execute(self.fish.Kernel(sampler),dt=0)
-            else :
-                raise ValueError(("{} kernel is not defined by "
-                                  "behaviours.AllKernels.").format(sk))
+                self.fish.execute(self.fish.Kernel(sampler), dt=0)
+            else:
+                raise ValueError(f"{sk} kernel is not defined by " "behaviours.AllKernels.")
 
-
-        if isinstance(kernels, dict) :
+        if isinstance(kernels, dict):
             kernels = list(kernels.values())
-        if not callable(kernels) : # then it should be a list or tuple
-            run_kernels = reduce(lambda a, b : a+b,
-                                 [self.fish.Kernel(k_fun) for k_fun in kernels])
+        if not callable(kernels):  # then it should be a list or tuple
+            run_kernels = reduce(lambda a, b: a + b, [self.fish.Kernel(k_fun) for k_fun in kernels])
 
         self.fish.execute(
-            run_kernels, endtime=end_time, runtime=duration_time, dt=delta_time,
-            recovery=recovery, output_file=particles_file, verbose_progress=verbose)
+            run_kernels,
+            endtime=end_time,
+            runtime=duration_time,
+            dt=delta_time,
+            recovery=recovery,
+            output_file=particles_file,
+            verbose_progress=verbose,
+        )
 
-# TOOLS -------------------------------------------------------------- #
+    # TOOLS -------------------------------------------------------------- #
 
     def oceanToNetCDF(self, dir_path: str = None, to_dataset: bool = False):
-        """Export the `ocean` FieldSet into a single NetCDF (as a Dataset)
+        """
+        Export the `ocean` FieldSet into a single NetCDF (as a Dataset)
         or multiple NetCDF (as DataArrays).
 
         Parameters
@@ -370,27 +410,27 @@ class IkaSimulation :
             doesn't exist.
         to_dataset : bool, optional
             Save as one Dataset (True) or multiple DataArrays (False).
-        """
 
-        if dir_path is None :
+        """
+        if dir_path is None:
             dir_path = "."
-        dir_path = os.path.join(dir_path,self.run_name)
-        try :
+        dir_path = os.path.join(dir_path, self.run_name)
+        try:
             os.mkdir(dir_path)
-        except FileExistsError :
-            print(("WARNING : The {} directory already exists. The files it "
-                   "contains will be replaced.").format(dir_path))
+        except FileExistsError:
+            print(
+                f"WARNING : The {dir_path} directory already exists. The files it " "contains will be replaced."
+            )
 
         fields_dict = {}
-        for field in self.ocean.get_fields() :
-            if (not isinstance(field, parcels.VectorField)
-                    and not field.name == "start_distribution") :
+        for field in self.ocean.get_fields():
+            if not isinstance(field, parcels.VectorField) and field.name != "start_distribution":
                 fields_dict[field.name] = convertToDataArray(field)
 
-        if to_dataset :
-            file_name = "{}.nc".format(self.run_name)
+        if to_dataset:
+            file_name = f"{self.run_name}.nc"
             xr.Dataset(fields_dict).to_netcdf(os.path.join(dir_path, file_name))
-        else :
-            for field_name, field_value in fields_dict.items() :
-                file_name = "{}_{}.nc".format(self.run_name, field_name)
+        else:
+            for field_name, field_value in fields_dict.items():
+                file_name = f"{self.run_name}_{field_name}.nc"
                 field_value.to_netcdf(os.path.join(dir_path, file_name))

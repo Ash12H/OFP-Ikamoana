@@ -1,9 +1,10 @@
-from typing import Dict, List, Tuple
-import xml.etree.ElementTree as ET
-from xml.dom.minidom import parseString
 import os
+import xml.etree.ElementTree as ET
+from typing import Dict, List, Tuple
+from xml.dom.minidom import parseString
 
-class ConfigFileGenerator :
+
+class ConfigFileGenerator:
     """
     This class generates a configuration file for the Ikamoana
     simulation. All functions will generate the necessary tags except
@@ -23,16 +24,16 @@ class ConfigFileGenerator :
     >>> my_cfg.kernels(["IkAdvectionRK4","IkaDymMove","LandBlock","Age])
     >>> my_cfg.write("~/my_config_file.xml")
 
-    See also
+    See Also
     --------
     Documentation : `Ikamoana_configuration_file.md` in
     `Ikamoana/doc/Configuration Files/`.
+
     """
 
-    def __init__(
-            self, run_name: str = "", random_seed: float = ""
-            ) -> None:
-        """Generates the basic structure of the configuration file.
+    def __init__(self, run_name: str = "", random_seed: float = "") -> None:
+        """
+        Generates the basic structure of the configuration file.
 
         Parameters
         ----------
@@ -41,16 +42,15 @@ class ConfigFileGenerator :
 
         random_seed : float, optional
             Randomly generated if left empty.
-        """
 
+        """
         self.root = ET.Element("ika_params")
         se_run_name = ET.SubElement(self.root, "run_name")
         se_run_name.text = run_name
         se_random_seed = ET.SubElement(self.root, "random_seed")
         se_random_seed.text = random_seed
 
-    def directories(
-            self, forcing_dir:str, start_distribution:str, seapodym_file:str):
+    def directories(self, forcing_dir: str, start_distribution: str, seapodym_file: str):
         """
         Parameters
         ----------
@@ -64,24 +64,30 @@ class ConfigFileGenerator :
 
         seapodym_file : str
             Path to the SEAPODYM configuration file.
+
         """
         directories = ET.Element("directories")
 
-        se_forcing_dir = ET.SubElement(directories,"forcing_dir")
+        se_forcing_dir = ET.SubElement(directories, "forcing_dir")
         se_forcing_dir.text = str(forcing_dir)
-        se_start_distribution = ET.SubElement(directories,"start_distribution")
+        se_start_distribution = ET.SubElement(directories, "start_distribution")
         se_start_distribution.text = str(start_distribution)
-        se_seapodym_file = ET.SubElement(directories,"seapodym_file")
+        se_seapodym_file = ET.SubElement(directories, "seapodym_file")
         se_seapodym_file.text = str(seapodym_file)
 
         self.root.append(directories)
 
     def domain(
-            self,
-            dt: float = 1, start: str = "", sim_time: float = 1, output_dt: float = 0,
-            lat_min: float = -90, lat_max: float = 90,
-            lon_min: float = 0, lon_max: float = 360
-            ) :
+        self,
+        dt: float = 1,
+        start: str = "",
+        sim_time: float = 1,
+        output_dt: float = 0,
+        lat_min: float = -90,
+        lat_max: float = 90,
+        lon_min: float = 0,
+        lon_max: float = 360,
+    ):
         """
         Parameters
         ----------
@@ -109,6 +115,7 @@ class ConfigFileGenerator :
         Note
         ----
         `dt`, `start` and `output_dt` are expressed in days.
+
         """
         domain = ET.Element("domain")
 
@@ -140,11 +147,16 @@ class ConfigFileGenerator :
         self.root.append(domain)
 
     def cohortInfo(
-            self, start_length: float = 0, ageing: bool = False,
-            number_of_cohorts: int = 0, start_dynamic_file: str = None,
-            file_extension: str = "nc", start_static_file: str = None,
-            start_cell_lon: float = None, start_cell_lat: float = None
-            ):
+        self,
+        start_length: float = 0,
+        ageing: bool = False,
+        number_of_cohorts: int = 0,
+        start_dynamic_file: str = None,
+        file_extension: str = "nc",
+        start_static_file: str = None,
+        start_cell_lon: float = None,
+        start_cell_lat: float = None,
+    ):
         """
         Parameters
         ----------
@@ -176,6 +188,7 @@ class ConfigFileGenerator :
         start_cell_lon, start_cell_lat : float, optional
             The particles will be randomly distributed in a specific
             cell. This method is used in tag release simulations.
+
         """
         cohort_info = ET.Element("cohort_info")
 
@@ -185,15 +198,15 @@ class ConfigFileGenerator :
         se_ageing.text = str(ageing)
         se_number_of_cohorts = ET.SubElement(cohort_info, "number_of_cohorts")
         se_number_of_cohorts.text = str(number_of_cohorts)
-        if start_dynamic_file is not None :
+        if start_dynamic_file is not None:
             se_start_dynamic_file = ET.SubElement(cohort_info, "start_dynamic_file")
             se_start_dynamic_file.text = str(start_dynamic_file)
             se_start_dynamic_file.attrib["file_extension"] = str(file_extension)
-        if start_static_file is not None :
+        if start_static_file is not None:
             se_start_static_file = ET.SubElement(cohort_info, "start_static_file")
             se_start_static_file.text = str(start_static_file)
 
-        if (start_cell_lon is not None) and (start_cell_lat is not None) :
+        if (start_cell_lon is not None) and (start_cell_lat is not None):
             e_start_cell = ET.Element("start_cell")
             se_lon = ET.SubElement(e_start_cell, "lon")
             se_lon.text = str(start_cell_lon)
@@ -204,11 +217,16 @@ class ConfigFileGenerator :
         self.root.append(cohort_info)
 
     def mortality(
-            self, fishery_dict: Dict[str,str], skiprows: int = 0,
-            predict_effort: bool = False, effort_file: str = "",
-            import_effort: bool = False, export_effort: bool = False
-            ):
-        """OPTIONAL function.
+        self,
+        fishery_dict: Dict[str, str],
+        skiprows: int = 0,
+        predict_effort: bool = False,
+        effort_file: str = "",
+        import_effort: bool = False,
+        export_effort: bool = False,
+    ):
+        """
+        OPTIONAL function.
 
         Parameters
         ----------
@@ -247,25 +265,23 @@ class ConfigFileGenerator :
         At high (spatial) resolution, this part takes a lot of time to
         compute. It is recommended to calculate it once and then save
         it in a NetCDF file.
-        """
 
+        """
         mortality = ET.Element("mortality")
 
-        effort_file_attrs = {"import":str(import_effort),
-                             "export":str(export_effort)}
-        se_effort_file = ET.SubElement(mortality, "effort_file",
-                                       attrib=effort_file_attrs)
+        effort_file_attrs = {"import": str(import_effort), "export": str(export_effort)}
+        se_effort_file = ET.SubElement(mortality, "effort_file", attrib=effort_file_attrs)
         se_effort_file.text = str(effort_file)
 
         e_selected_fisheries = ET.Element("selected_fisheries")
-        for name, effort_file_name in fishery_dict.items() :
+        for name, effort_file_name in fishery_dict.items():
             se_fishery = ET.SubElement(e_selected_fisheries, "fishery")
-            se_fishery.attrib['name'] = str(name)
-            if effort_file_name not in [None, ""] :
-                se_fishery.attrib['effort_file_name'] = str(effort_file_name)
+            se_fishery.attrib["name"] = str(name)
+            if effort_file_name not in [None, ""]:
+                se_fishery.attrib["effort_file_name"] = str(effort_file_name)
         mortality.append(e_selected_fisheries)
 
-        if predict_effort :
+        if predict_effort:
             raise ValueError("The prediction of effort is no longer supported.")
         se_predict_effort = ET.SubElement(mortality, "predict_effort")
         se_predict_effort.text = str(predict_effort)
@@ -276,18 +292,22 @@ class ConfigFileGenerator :
         self.root.append(mortality)
 
     def forcing(
-            self,
-            files_dict: Dict[str, Tuple[bool, str]] = {},
-            files_only: bool = False,
-            home_directory: bool = "",
-            correct_epi_temp_with_vld: bool = False,
-            landmask_from_habitat: bool = False,
-            shallow_sea_to_ocean: bool = False, indonesian_filter: bool = False,
-            vertical_movement: bool = False, diffusion_boost: float = 0,
-            diffusion_scale: float = 1, c_scale: float = 1,
-            taxis_scale: float = 1, units: str = "m_per_s",
-            field_interp_method: str = "nearest"
-            ) :
+        self,
+        files_dict: Dict[str, Tuple[bool, str]] = {},
+        files_only: bool = False,
+        home_directory: bool = "",
+        correct_epi_temp_with_vld: bool = False,
+        landmask_from_habitat: bool = False,
+        shallow_sea_to_ocean: bool = False,
+        indonesian_filter: bool = False,
+        vertical_movement: bool = False,
+        diffusion_boost: float = 0,
+        diffusion_scale: float = 1,
+        c_scale: float = 1,
+        taxis_scale: float = 1,
+        units: str = "m_per_s",
+        field_interp_method: str = "nearest",
+    ):
         """
         Parameters
         ----------
@@ -351,46 +371,45 @@ class ConfigFileGenerator :
             String, default is "nearest". Only "linear", "nearest",
             "linear_invdist_land_tracer", "cgrid_velocity",
             "cgrid_tracer" and "bgrid_velocity" are supported for now.
-        """
 
+        """
         forcing = ET.Element("forcing")
 
-        attributes = {"files_only":str(files_only),
-                      "home_directory":str(home_directory)}
+        attributes = {"files_only": str(files_only), "home_directory": str(home_directory)}
         e_files = ET.Element("files", attrib=attributes)
 
-        for file_name, (dataset_bool, filepath) in files_dict.items() :
+        for file_name, (dataset_bool, filepath) in files_dict.items():
             se_file = ET.SubElement(e_files, file_name)
-            se_file.attrib['dataset'] = str(dataset_bool)
+            se_file.attrib["dataset"] = str(dataset_bool)
             # TODO include home_directory
-            se_file.text = str(filepath)#os.path.join(str(home_directory), str(filepath))
+            se_file.text = str(filepath)  # os.path.join(str(home_directory), str(filepath))
         forcing.append(e_files)
 
-        se_correct_epi_temp_with_vld = ET.SubElement(forcing,"correct_epi_temp_with_vld")
+        se_correct_epi_temp_with_vld = ET.SubElement(forcing, "correct_epi_temp_with_vld")
         se_correct_epi_temp_with_vld.text = str(correct_epi_temp_with_vld)
-        se_landmask_from_habitat = ET.SubElement(forcing,"landmask_from_habitat")
+        se_landmask_from_habitat = ET.SubElement(forcing, "landmask_from_habitat")
         se_landmask_from_habitat.text = str(landmask_from_habitat)
-        se_shallow_sea_to_ocean = ET.SubElement(forcing,"shallow_sea_to_ocean")
+        se_shallow_sea_to_ocean = ET.SubElement(forcing, "shallow_sea_to_ocean")
         se_shallow_sea_to_ocean.text = str(shallow_sea_to_ocean)
-        se_indonesian_filter = ET.SubElement(forcing,"indonesian_filter")
+        se_indonesian_filter = ET.SubElement(forcing, "indonesian_filter")
         se_indonesian_filter.text = str(indonesian_filter)
-        se_vertical_movement = ET.SubElement(forcing,"vertical_movement")
+        se_vertical_movement = ET.SubElement(forcing, "vertical_movement")
         se_vertical_movement.text = str(vertical_movement)
-        se_diffusion_boost = ET.SubElement(forcing,"diffusion_boost")
+        se_diffusion_boost = ET.SubElement(forcing, "diffusion_boost")
         se_diffusion_boost.text = str(diffusion_boost)
-        se_diffusion_scale = ET.SubElement(forcing,"diffusion_scale")
+        se_diffusion_scale = ET.SubElement(forcing, "diffusion_scale")
         se_diffusion_scale.text = str(diffusion_scale)
-        se_c_scale = ET.SubElement(forcing,"c_scale")
+        se_c_scale = ET.SubElement(forcing, "c_scale")
         se_c_scale.text = str(c_scale)
-        se_taxis_scale = ET.SubElement(forcing,"taxis_scale")
+        se_taxis_scale = ET.SubElement(forcing, "taxis_scale")
         se_taxis_scale.text = str(taxis_scale)
-        se_units = ET.SubElement(forcing,"units")
+        se_units = ET.SubElement(forcing, "units")
         se_units.text = str(units)
-        se_field_interp_method = ET.SubElement(forcing,"field_interp_method")
+        se_field_interp_method = ET.SubElement(forcing, "field_interp_method")
         se_field_interp_method.text = str(field_interp_method)
         self.root.append(forcing)
 
-    def kernels(self, kernels_list: List[str]) :
+    def kernels(self, kernels_list: List[str]):
         """
         Parameters
         ----------
@@ -402,28 +421,28 @@ class ConfigFileGenerator :
              kernels are dependent on others and will have to be
              executed downstream. The user must pay attention and act
              accordingly.
+
         """
         kernels = ET.Element("kernels")
 
-        for kernel in kernels_list :
+        for kernel in kernels_list:
             se_kernel = ET.SubElement(kernels, "kernel")
             se_kernel.text = str(kernel)
 
         self.root.append(kernels)
 
-    def write(self, filepath:str):
+    def write(self, filepath: str):
         """Write the final configuration file."""
-
         dirname, filename = os.path.split(filepath)
-        if dirname == "" :
+        if dirname == "":
             dirname = "./"
         pref, _ = os.path.splitext(filename)
-        filepath = os.path.join(dirname, pref+".xml")
+        filepath = os.path.join(dirname, pref + ".xml")
 
         parser = parseString(ET.tostring(self.root))
         pretty_xml = parser.toprettyxml()
 
-        with open(filepath, "w") as files :
-                files.write(pretty_xml)
+        with open(filepath, "w") as files:
+            files.write(pretty_xml)
 
         return filepath
