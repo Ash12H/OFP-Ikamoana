@@ -12,6 +12,16 @@ numpy = "^1.26.4"
 pandas = "^2.2.2"
 matplotlib = "^3.8.4"
 parcels = "^3.0.2"
+ipykernel = "^6.29.4"
+netcdf4 = "^1.6.5"
+cartopy = "^0.23.0"
+jupyter = "^1.0.0"
+cgen = "^2020.1"
+dask = "^2024.4.1"
+zarr = "^2.17.2"
+tqdm = "^4.66.2"
+scipy = "^1.13.0"
+scikit-learn = "^1.4.2"
 
 
 [tool.poetry.group.dev.dependencies]

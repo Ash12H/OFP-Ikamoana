@@ -69,13 +69,12 @@ def readFiles(
     if (skiprows.size == 1) and (filepath.size != 1):
         skiprows = np.tile(skiprows, filepath.size)
     elif skiprows.size != filepath.size:
-        raise ValueError(
-
-                "Specify a number of row to skip for each filepath "
-                f"or one for every paths. filepath size is {filepath.size} and "
-                f"skiprows size is {skiprows.size}."
-
+        msg = (
+            "Specify a number of row to skip for each filepath "
+            f"or one for every paths. filepath size is {filepath.size} and "
+            f"skiprows size is {skiprows.size}."
         )
+        raise ValueError(msg)
 
     df_list = []
     for path, skip in zip(filepath, skiprows):
@@ -150,7 +149,7 @@ def _reindexTime(effort_df: pd.DataFrame, time_coords: np.ndarray, limit: int) -
     return effort_df
 
 
-def reindexCoordinates(effort_df: pd.DataFrame, coords: xr.Coordinate, time_limit: float, space_limit: int):
+def reindexCoordinates(effort_df: pd.DataFrame, coords: xr.Coordinates, time_limit: float, space_limit: int):
     effort_df = _reindexTime(effort_df, coords["time"].data, time_limit)
     effort_df = _reindexSpace(
         effort_df, coords[_labels["latitude"]].data, coords[_labels["longitude"]].data, space_limit
@@ -203,11 +202,9 @@ def rescaleFisheries(effort_df: pd.DataFrame, resolution: float = None):
         resolution = min_data_resolution
     elif resolution > min_data_resolution:
         raise ValueError(
-
-                "Downscaling is not supported for now. Use "
-                f"reindexSpace instead. resolution = {resolution} and "
-                f"min_data_resolution = {min_data_resolution}"
-
+            "Downscaling is not supported for now. Use "
+            f"reindexSpace instead. resolution = {resolution} and "
+            f"min_data_resolution = {min_data_resolution}"
         )
 
     def computeSubfisheriesPositions(resolution, min_resolution, latitude, longitude):
@@ -652,7 +649,7 @@ def effortByFishery(
     filepath: Union[str, List[str]],
     space_reso: float,
     time_reso: int,
-    coords: xr.Coordinate,
+    coords: xr.Coordinates,
     skiprows: Union[int, List[int]] = 2,
     selected_fisheries: Union[str, List[str]] = None,
     predict_effort: bool = False,

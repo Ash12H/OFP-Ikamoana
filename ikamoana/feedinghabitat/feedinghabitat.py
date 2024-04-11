@@ -1,4 +1,3 @@
-
 """
 This module is implementing the FeedingHabitat class which can simulate the
 feeding habitat the same way as the SEAPODYM model (2020-08).
@@ -772,7 +771,7 @@ class FeedingHabitat:
     def correctEpiTempWithVld(self):
         """
         SEAPODYM Description :
-        - SeapodymCoupled_OnReadForcing.cpp, line 66
+        - SeapodymCoupled_OnReadForcing.cpp, line 66.
 
         Warning : This function must be used after `indonesianFilter()`.
 

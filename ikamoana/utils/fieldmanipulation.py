@@ -135,14 +135,14 @@ def closestCoord(
     return coords[indexClosestCoord(coords, value)].data
 
 
-def coordsAccess(coords: xr.Coordinate) -> Tuple[LambdaType, LambdaType, LambdaType]:
+def coordsAccess(coords: xr.Coordinates) -> Tuple[LambdaType, LambdaType, LambdaType]:
     """
     Return accessor to closest value for time, latitude and longitude
     coordinates.
 
     Parameters
     ----------
-    coords : xr.Coordinate
+    coords : xr.Coordinates
         [description]
 
     See Also
